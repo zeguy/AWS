@@ -1,0 +1,14 @@
+		 stage("dev-html-validator"){
+            steps {
+                script{    
+                    sshagent (credentials: ['test']) {
+                        sh "ssh -o StrictHostKeyChecking=no USERNAME@${DEV} 'cd GITDIRECTORY && curl --form \"uploaded_file=@index.html;type=text/html\" --silent --show-error http://validator.w3.org/check | grep \"X-W3C-Validator-Status: Valid\"' > validationResult"
+                        env.validation = readFile('validationResult').trim()
+                        if (env.validation != 'X-W3C-Validator-Status: Valid') {
+                            error "validation failed"
+                        }
+                    }
+                    sleep 2
+                }
+            }        
+        }
