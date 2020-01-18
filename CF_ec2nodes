@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09 
-Description: Sample AWS CloudFormation Template to create Dev and Staging EC2 instances with Docker and Apache container for CI/CD FP
+Description: AWS CloudFormation Template to create Dev and Staging EC2 instances with Docker and Apache container for CI/CD FP
 Parameters:  
   UserName:    
     Type: String    
