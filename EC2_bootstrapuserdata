@@ -15,8 +15,8 @@ echo ‘PUBLIC_KEY’ > /home/username/.ssh/authorized_keys
 # Change the ownership of /home/username/.ssh
 chown -R username.username /home/username/.ssh
 
-# Change the permission of the folder and the file chmod 
-700 /home/username/.ssh
+# Change the permission of the folder and the file 
+chmod 700 /home/username/.ssh
 chmod 600 /home/username/.ssh/authorized_keys
 
 # Add username to the sudoers users to have permission to be root
