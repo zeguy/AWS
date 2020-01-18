@@ -1,0 +1,176 @@
+AWSTemplateFormatVersion: 2010-09-09 
+Description: Sample AWS CloudFormation Template to create Dev and Staging EC2 instances with Docker and Apache container for CI/CD FP
+Parameters:  
+  UserName:    
+    Type: String    
+    Default: mrpink
+  SSHPublicKey1:    
+    Type: String
+    Default: ssh-rsa...
+  SSHPublicKey2:    
+    Type: String
+    Default: ssh-rsa...
+  SSHPublicKey3:    
+    Type: String
+    Default: ssh-rsa...
+  SSHPublicKeyAnsible:
+    Type: String
+    Default: ssh-rsa...
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small      
+      - t2.medium
+    ConstraintDescription: must be a valid EC2 instance type.
+  AMI:    
+    Type: String    
+    Default: ami...    
+    Description: Instance AMI
+  vpcid:
+    Description: VPC
+    Type: 'AWS::EC2::VPC::Id'
+    ConstraintDescription: must be a VPC  where the SG and the launcher reside
+  Subnet:
+    Description: Public subnet for the instance    
+    Type: 'AWS::EC2::Subnet::Id'
+    Default: some_default_public_subnet
+
+Resources:  
+  EC2FPNodeSG:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupName: ssh_and_2018-19_SG
+      VpcId: !Ref vpcid 
+      GroupDescription: INSECURE ssh port 22 & tcp 2018-2019 access to all            
+      SecurityGroupIngress:        
+        - IpProtocol: tcp          
+          FromPort: '2018'
+          ToPort: '2019'          
+          CidrIp: 0.0.0.0/0        
+        - IpProtocol: tcp          
+          FromPort: '22'          
+          ToPort: '22'          
+          CidrIp: 0.0.0.0/0
+  
+  EC2DevInstance:    
+    Type: 'AWS::EC2::Instance'    
+    Properties:      
+      InstanceType: !Ref InstanceType
+      SubnetId: !Ref Subnet     
+      ImageId: !Ref AMI
+      SecurityGroupIds:
+        - !Ref EC2FPNodeSG
+
+      Tags:        
+        - Key: Name
+          Value: sometag
+      
+      UserData:        
+        Fn::Base64:
+          Fn::Sub:
+            - | 
+              #! /bin/bash              
+              adduser ${USERNAME}
+              echo "${USERNAME}  ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME}
+              mkdir /home/${USERNAME}/.ssh
+              echo ${SSHKEY1} > /home/${USERNAME}/.ssh/authorized_keys
+              echo ${SSHKEY2} >> /home/${USERNAME}/.ssh/authorized_keys
+              echo ${SSHKEY3} >> /home/${USERNAME}/.ssh/authorized_keys
+              echo ${SSHPublicKeyAnsible} >> /home/${USERNAME}/.ssh/authorized_keys
+              echo ${SSHPublicKeyAnsible} >> ~/.ssh/authorized_keys
+              chown -R ${USERNAME}.${USERNAME} /home/${USERNAME}/.ssh
+              chmod 700 /home/${USERNAME}/.ssh
+              chmod 600 /home/${USERNAME}/.ssh/authorized_keys
+              #Install Git
+              yum install git -y
+              #Clone public repo  
+              cd /home/${USERNAME}
+              git clone https://github.com/SOMEREPO.git 
+              #Install, enable and start docker
+              yum install docker -y 
+              systemctl enable docker  
+              systemctl start docker
+              cd SOMEREPODIRECTORY && docker build -t my-apache2 .
+              docker run --name dev -d -p 2018:80 my-apache2
+              #Create directories and download files from public repo
+              #mkdir -p ./public-html/img
+              #curl -o public-html/index.html https://raw.githubusercontent.com/...
+              #curl -o public-html/Dockerfile https://raw.githubusercontent.com/...
+              #curl -o public-html/img/someimg -L https://github.com/...            
+            
+            - USERNAME: !Ref UserName
+              SSHKEY1: !Ref SSHPublicKey1
+              SSHKEY2: !Ref SSHPublicKey2
+              SSHKEY3: !Ref SSHPublicKey3
+              SSHPublicKeyAnsible: !Ref SSHPublicKeyAnsible
+
+  EC2StageInstance:    
+    Type: 'AWS::EC2::Instance'    
+    Properties:      
+      InstanceType: !Ref InstanceType
+      SubnetId: !Ref Subnet     
+      ImageId: !Ref AMI
+      SecurityGroupIds:
+        - !Ref EC2FPNodeSG
+
+      Tags:        
+        - Key: Name
+          Value: sometag
+      
+      UserData:        
+        Fn::Base64:
+          Fn::Sub:
+            - | 
+              #! /bin/bash              
+              useradd  ${USERNAME} --create-home --shell /bin/bash
+              mkdir /home/${USERNAME}/.ssh
+              echo ${SSHKEY1} > /home/${USERNAME}/.ssh/authorized_keys
+              echo ${SSHKEY2} >> /home/${USERNAME}/.ssh/authorized_keys
+              echo ${SSHKEY3} >> /home/${USERNAME}/.ssh/authorized_keys
+              echo ${SSHPublicKeyAnsible} >> /home/${USERNAME}/.ssh/authorized_keys
+              echo ${SSHPublicKeyAnsible} >> ~/.ssh/authorized_keys
+              chown -R ${USERNAME}.${USERNAME} /home/${USERNAME}/.ssh
+              chmod 700 /home/${USERNAME}/.ssh
+              chmod 600 /home/${USERNAME}/.ssh/authorized_keys
+              echo "${USERNAME}  ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME}
+              #Install Git
+              yum install git -y
+              #Clone public repo  
+              cd /home/${USERNAME}
+              git clone https://github.comSOMEREPO.git 
+              #Install, enable and start docker
+              yum install docker -y 
+              systemctl enable docker  
+              systemctl start docker
+              cd SOMEREPODIRECTORY && docker build -t my-apache2 .
+              docker run --name stage -d -p 2019:80 my-apache2
+                            
+              #Create directories and download files from public repo
+              #mkdir -p ./public-html/img
+              #curl -o public-html/index.html https://raw.githubusercontent.com/...
+              #curl -o public-html/Dockerfile https://raw.githubusercontent.com/...
+              #curl -o public-html/img/someimg -L https://github.com/...
+              #cd public-html && docker build -t my-apache2 .
+              #docker run --name stage -d -p 2019:80 my-apache2
+           
+            - USERNAME: !Ref UserName
+              SSHKEY1: !Ref SSHPublicKey1
+              SSHKEY2: !Ref SSHPublicKey2
+              SSHKEY3: !Ref SSHPublicKey3
+              SSHPublicKeyAnsible: !Ref SSHPublicKeyAnsible
+              
+Outputs:  
+  DevInstanceId:    
+    Description: InstanceId of the newly created EC2 Dev Instance 
+    Value: !Ref EC2DevInstance
+  DevPublicIp:
+    Description: Public IP of the newly created EC2 Dev Instance
+    Value: !GetAtt EC2DevInstance.PublicIp
+  StageInstanceId:    
+    Description: InstanceId of the newly created EC2 Dev Instance 
+    Value: !Ref EC2StageInstance
+  StagePublicIp:
+    Description: Public IP of the newly created EC2 Dev Instance
+    Value: !GetAtt EC2StageInstance.PublicIp
