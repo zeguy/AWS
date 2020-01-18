@@ -12,3 +12,16 @@
                 }
             }        
         }
+	
+	stage("dev-test-site-health"){
+	    steps {
+	        script{
+                    sh 'curl -Is ${DEV}:2018/index.html | head -n 1 > testResult'
+                    env.status = readFile('testResult').trim()
+                    if (env.status != 'HTTP/1.1 200 OK') {
+                        error "test failed"
+                     }
+                     sleep 2
+                }
+             }
+        }
